@@ -1,6 +1,6 @@
 /*
 	Astérix & Obélix Auto-Splitter XXL 1 (with loadless timer)
-	Version: 0.0.4
+	Version: 0.0.5
 	Author: NoTeefy
 	Compatible Versions: Standalone (PC)
 	Some code may be inspired by some referenced scripts and their authors: Avasam, DevilSquirrel, tduva, Darkid
@@ -22,11 +22,11 @@ state("Gamemodule.elb") {
 
 // Loading & func/var declaration
 startup {
-	vars.ver = "0.0.4";
+	vars.ver = "0.0.5";
 	vars.cooldownStopwatch = new Stopwatch();
 	
 	// Log Output switch for DebugView (enables/disables debug messages)
-    var DebugEnabled = false;
+    var DebugEnabled = true;
     Action<string> DebugOutput = (text) => {
         if (DebugEnabled) {
 			print(" «[AAOXXL1 - v" + vars.ver + "]» " + text);
@@ -70,7 +70,8 @@ startup {
 		tc(4, true, false), // helvetia
 		tc(5, true, false), // egypt
 		tc(6, true, false), // rome
-		tc(7, false, true) // overworld
+		tc(7, false, true), // overworld
+		tc(8, false, true) // credits
 	};
 	
 	vars.levelProgressionTemplate = levelTuples;
@@ -111,11 +112,11 @@ startup {
 	);
 	
 	vars.finalLeverST = new SigScanTarget(0,
-		"30 ?? ?? ?? ?? ?? ?? 02 00 00 00 00 ?? 02 ?? 02 00" // (offsets: 0x80, 0xC)
+		"30 ?? ?? ?? ?? ?? ?? 02 00 00 00 00 ?? ?? ?? ?? ??" // (offsets: 0x80, 0xC)
 	);
 	
 	vars.isLoadingST = new SigScanTarget(0,
-		"?? ?? ?? 05 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 01 00 00 00 01 00 00 00 27 00 00 00 00 00 00 00 14 ?? ??" // (offsets: 0x4EC, 0x668, 0xA8, 0x224, 0x64, 0x1BC, 0x2E9)
+		"?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 00 00 01 00 00 00 01 00 00 00 ?? ?? ?? ?? ?? 00 00 00 14 ?? ??" // (offsets: 0x4EC, 0x668, 0xA8, 0x224, 0x64, 0x1BC, 0x2E9)
 	);
 	
 	/*
@@ -132,7 +133,7 @@ startup {
 			return IntPtr.Zero;
 		}
 		var elapsed = vars.cooldownStopwatch.Elapsed.TotalMilliseconds;
-		if(elapsed >= 0.0100) {
+		if(elapsed >= 0.0125) {
 			vars.cooldownStopwatch.Restart();
 			vars.DebugOutput("readMultipointer{} - sig scan starting for [" + sigName + "]");
 			foreach (var page in proc.MemoryPages(true)) {
@@ -172,7 +173,7 @@ startup {
 	Action<double, Process, ProcessModuleWow64Safe> triggerInit = (refresh, proc, module) => {
 		vars.DebugOutput("triggerInit{} - called");
 		double refreshRate = refresh;
-		refreshRate = 1000/100; // limit the cycles to 100ms
+		refreshRate = 1000/250; // limit the cycles to 100ms
 		vars.resetValues();
 		vars.watchers = new MemoryWatcherList() {};
 		vars.cooldownStopwatch.Start(); // starting stopwatch to make sure that the more intensive computations (sig scans etc) aren't processed too frequently
@@ -212,7 +213,7 @@ startup {
 					}
 					break;
 				}
-				throw new Exception("triggerInit{} - Initialization is not done yet!");
+				throw new Exception("triggerInit{} - Pointer: " + watcherToParse.Item1 + " failed or returned a null. " + "Initialization is not done yet!");
 			}
 		}
 		
