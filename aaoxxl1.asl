@@ -1,6 +1,6 @@
 /*
 	Astérix & Obélix Auto-Splitter XXL 1 (with loadless timer)
-	Version: 0.0.5
+	Version: 0.0.6
 	Author: NoTeefy
 	Compatible Versions: Standalone (PC)
 	Some code may be inspired by some referenced scripts and their authors: Avasam, DevilSquirrel, tduva, Darkid
@@ -22,11 +22,12 @@ state("Gamemodule.elb") {
 
 // Loading & func/var declaration
 startup {
-	vars.ver = "0.0.5";
+	vars.ver = "0.0.6";
 	vars.cooldownStopwatch = new Stopwatch();
+	refreshRate = 1000/500;
 	
 	// Log Output switch for DebugView (enables/disables debug messages)
-    var DebugEnabled = true;
+    var DebugEnabled = false;
     Action<string> DebugOutput = (text) => {
         if (DebugEnabled) {
 			print(" «[AAOXXL1 - v" + vars.ver + "]» " + text);
@@ -116,7 +117,7 @@ startup {
 	);
 	
 	vars.isLoadingST = new SigScanTarget(0,
-		"?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 00 00 01 00 00 00 01 00 00 00 ?? ?? ?? ?? ?? 00 00 00 14 ?? ??" // (offsets: 0x4EC, 0x668, 0xA8, 0x224, 0x64, 0x1BC, 0x2E9)
+		"?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 00 00 01 00 00 00 01 00 00 00 27" // (offsets: 0x4EC, 0x65C, 0x134, 0xFC, 0x288, 0x1C4, 0x111)
 	);
 	
 	/*
@@ -124,7 +125,7 @@ startup {
 		It takes the following parameters: Process, module, signature name, signature structure, offsets of the multilevel pointers as an int-array, baseOffset of the first pointer if the signature was negatively/positively offsetted
 		
 		IMPORTANT!
-		Has a cooldown of 100ms per read to prevent high CPU usage or crashes if no pointers are getting found in a loop without locking the thread
+		Has a cooldown of 125ms per read to prevent high CPU usage or crashes if no pointers are getting found in a loop without locking the thread
 	*/
 	Func<Process, ProcessModuleWow64Safe, String, SigScanTarget, int[], int, IntPtr> readMultipointer = (proc, module, sigName, sigTarget, offsets, baseOffset) => {
 		var ptrToResolve = IntPtr.Zero;
@@ -172,8 +173,7 @@ startup {
 	*/
 	Action<double, Process, ProcessModuleWow64Safe> triggerInit = (refresh, proc, module) => {
 		vars.DebugOutput("triggerInit{} - called");
-		double refreshRate = refresh;
-		refreshRate = 1000/250; // limit the cycles to 100ms
+		refreshRate = 1000/500; // limit the cycles to 500ms
 		vars.resetValues();
 		vars.watchers = new MemoryWatcherList() {};
 		vars.cooldownStopwatch.Start(); // starting stopwatch to make sure that the more intensive computations (sig scans etc) aren't processed too frequently
@@ -228,7 +228,7 @@ startup {
 init {
 	vars.DebugOutput("init{} - Attached autosplitter to game client");
 	vars.DebugOutput("init{} - Starting to search for the ingame memory region");
-	refreshRate = 70;
+	refreshRate = 1000/500;
 	vars.triggerInit(refreshRate, game, modules.First());
 }
 
