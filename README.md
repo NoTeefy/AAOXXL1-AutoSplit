@@ -8,7 +8,7 @@ Auto-Splitter for the game Astérix &amp; Obélix XXL on PC
  - Automated end split after the final boss lever (frame perfect)
  - Dynamic start if wished (can start after loading a level from the overworld instead of the standard start after the intro movie)
  - Dynamic signature patterns (should be somewhat patch save)
- - The splitter enables the support for all known ingame languages (Wanna play XXL in French, German, English, Italian? - No worries, this splitter got your covered!)
+ - The splitter enables the support for all known ingame languages (Wanna play XXL in French, German, English, Italian? - No worries, this splitter got you covered!)
  
  # Compatibility
  This auto-splitter was successfully tested on the following versions of the game:
