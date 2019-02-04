@@ -1,5 +1,6 @@
 # AAOXXL1-AutoSplit
 Auto-Splitter for the game Astérix &amp; Obélix XXL on PC
+**IMPORTANT: NVIDIA Shadowplay will break this autosplitter because of some code injections. It's currently not supported by the splitter. Be sure to deactivate it before using the splitter (you might need to restart your LiveSplit + Game after deactivating it)**
 
 # Functions
  - Automated splits for individual routes (splits if a level is entered for the first time)
