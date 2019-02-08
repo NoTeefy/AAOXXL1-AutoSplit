@@ -217,7 +217,7 @@ startup {
 			}
 		}
 		
-		refreshRate = 1000/14; // limit the cycles to 14ms
+		refreshRate = 1000/7; // limit the cycles to 7ms
 		vars.initialized = true;
 		vars.cooldownStopwatch.Reset(); // resetting stopwatch since we don't need it to run anymore
 	};
@@ -328,11 +328,12 @@ update {
 start {
 	if(vars.shouldStart) {
 		vars.shouldStart = false;
+		refreshRate = 1000/7; // limit the cycles to 7ms
 		return true;
 	}
 	else if(vars.runStarted) {
 		// manual reset detected
-		refreshRate = 70;
+		refreshRate = 1000/500; // set to refresh cycle of 500ms
 		vars.DebugOutput("start{} - " + "manual reset (timer stopped) detected; reinitialising splitter");
 		vars.triggerInit(refreshRate, game, modules.First()); // resetting stuff
 	}
