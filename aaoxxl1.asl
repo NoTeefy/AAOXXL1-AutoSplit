@@ -1,6 +1,6 @@
 /*
 	Astérix & Obélix Auto-Splitter XXL 1 (with loadless timer)
-	Version: 0.0.8
+	Version: 1.0.0
 	Author: NoTeefy
 	Compatible Versions: Standalone (PC)
 	Some code may be inspired by some referenced scripts and their authors: Avasam, DevilSquirrel, tduva, Darkid
@@ -22,7 +22,7 @@ state("Gamemodule.elb") {
 
 // Loading & func/var declaration
 startup {
-	vars.ver = "0.0.8";
+	vars.ver = "1.0.0";
 	vars.cooldownStopwatch = new Stopwatch();
 	refreshRate = 1000/500;
 	
@@ -37,12 +37,12 @@ startup {
 
 	vars.DebugOutput("startup{} - Initialising auto-splitter"); 
 	settings.Add("isLoadless", true, "Use loadless timer");
-	settings.Add("alwaysStart", false, "Always start after a load has been triggered while not being on the overworld");
+	settings.Add("alwaysStart", false, "Segmented run");
 	
 	Func<int, bool, bool, Tuple<int, bool, bool>> tc = Tuple.Create;
 	vars.tc = tc;
 	
-	Func<String, SigScanTarget, int[], int, String, bool, Tuple<String, SigScanTarget, int[], int, String, bool>> tcStruct = Tuple.Create;
+	Func<String, SigScanTarget, int[], int, String, bool, bool, Tuple<String, SigScanTarget, int[], int, String, bool, bool>> tcStruct = Tuple.Create;
 	vars.tcStruct = tcStruct;
 	
 	/*
@@ -83,7 +83,7 @@ startup {
 	Action resetValues = () => {
 		vars.initialized = false;
 		vars.watcherValues = new Dictionary<string, Tuple<String, String>> {};
-		vars.watcherList = new List<Tuple<String, SigScanTarget, int[], int, String, bool>>{};
+		vars.watcherList = new List<Tuple<String, SigScanTarget, int[], int, String, bool, bool>>{};
 		vars.shouldStart = false;
 		vars.shouldSplit = false;
 		vars.shouldPause = false;
@@ -117,7 +117,7 @@ startup {
 	);
 	
 	vars.isLoadingST = new SigScanTarget(0,
-		"B4 2C 66 00 C7 46 34 A0 2B 66 00 C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? 8B ?? ?? ?? ?? ?? 83 E1 FE" // (offsets: 0xE0)
+		"BF ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 42 ?? ?? ?? ?? ?? ?? ?? 03 00 00 00 00 00 00 00 00 00 00 00 00 00 10 12 ?? ?? ?? 00 00 ?? ??" // base offset of +0x29 (offsets: 0x58, 0x0, 0x5F8, 0x40ED)
 	);
 	
 	/*
@@ -127,7 +127,7 @@ startup {
 		IMPORTANT!
 		Has a cooldown of 125ms per read to prevent high CPU usage or crashes if no pointers are getting found in a loop without locking the thread
 	*/
-	Func<Process, ProcessModuleWow64Safe, String, SigScanTarget, int[], int, IntPtr> readMultipointer = (proc, module, sigName, sigTarget, offsets, baseOffset) => {
+	Func<Process, ProcessModuleWow64Safe, String, SigScanTarget, int[], int, bool, IntPtr> readMultipointer = (proc, module, sigName, sigTarget, offsets, signatureOffset, isX64) => {
 		var ptrToResolve = IntPtr.Zero;
 		if(!vars.cooldownStopwatch.IsRunning) { // prevent errors if the start wasn't triggered in caller method
 			vars.cooldownStopwatch.Start();
@@ -136,6 +136,9 @@ startup {
 		var elapsed = vars.cooldownStopwatch.Elapsed.TotalMilliseconds;
 		if(elapsed >= 0.0125) {
 			vars.cooldownStopwatch.Restart();
+			if(isX64){
+				vars.DebugOutput("readMultipointer{} - using x64 architecture");
+			}
 			vars.DebugOutput("readMultipointer{} - sig scan starting for [" + sigName + "]");
 			foreach (var page in proc.MemoryPages(true)) {
 					var scanner = new SignatureScanner(proc, page.BaseAddress, (int)page.RegionSize);
@@ -143,10 +146,16 @@ startup {
 					if (ptrToResolve == IntPtr.Zero) {
 						ptrToResolve = scanner.Scan(sigTarget);
 					} else {
-						IntPtr basePointer = new IntPtr(ptrToResolve.ToInt64() + baseOffset);
+						IntPtr basePointer = new IntPtr(ptrToResolve.ToInt64() + signatureOffset);
 						vars.DebugOutput("readMultipointer{} - found base pointer for [" + sigName + "] at " + basePointer.ToString("X"));
-						var baseModuleOffset = (int)basePointer - (int)module.BaseAddress;
-						DeepPointer dP = new DeepPointer(baseModuleOffset, offsets);
+						int baseOffset = 0;
+						if(isX64) {
+							baseOffset = Convert.ToInt32((Int64)basePointer - (Int64)module.BaseAddress);
+						}
+						else {
+							baseOffset = (int)basePointer - (int)module.BaseAddress;
+						}
+						DeepPointer dP = new DeepPointer(module.ToString(), baseOffset, offsets);
 						IntPtr resolvedPtr = new IntPtr();
 						dP.DerefOffsets(proc, out resolvedPtr);
 						if(resolvedPtr != IntPtr.Zero) {
@@ -173,30 +182,32 @@ startup {
 	*/
 	Action<double, Process, ProcessModuleWow64Safe> triggerInit = (refresh, proc, module) => {
 		vars.DebugOutput("triggerInit{} - called");
-		refreshRate = 1000/500; // limit the cycles to 500ms
+		refresh = 1000/500; // limit the cycles to 500ms
+		refreshRate = refresh;
 		vars.resetValues();
 		vars.watchers = new MemoryWatcherList() {};
 		vars.cooldownStopwatch.Start(); // starting stopwatch to make sure that the more intensive computations (sig scans etc) aren't processed too frequently
 		
-		vars.watcherList = new List<Tuple<String, SigScanTarget, int[], int, String, bool>>{
-			//vars.tcStruct("isInCutscene", vars.isInCutsceneST, new int[]{ 0x74, 0x4DC }, 0x0, "bool", false),
-			vars.tcStruct("isLoading", vars.isLoadingST, new int[]{ 0xE0 }, 0x0, "bool", false),
-			vars.tcStruct("levelNumber", vars.levelNumberST, new int[]{ 0x20 }, 0x0, "byte", false),
-			vars.tcStruct("finalLever", vars.finalLeverST, new int[]{ 0x80, 0xC }, 0x0, "bool", false),
-			vars.tcStruct("isIntroDone", vars.isIntroDoneST, new int[]{ 0x24 }, 0x0, "bool", false)
+		// name, struct(AOB), multilevelpointer offsets, signature offset, type, is64BitPointer, isInitialized (default should be on false)
+		vars.watcherList = new List<Tuple<String, SigScanTarget, int[], int, String, bool, bool>>{
+			//vars.tcStruct("isInCutscene", vars.isInCutsceneST, new int[]{ 0x74, 0x4DC }, 0x0, "bool", false, false),
+			vars.tcStruct("isLoading", vars.isLoadingST, new int[]{ 0x58, 0x0, 0x5F8, 0x40ED }, 0x29, "bool", false, false),
+			vars.tcStruct("levelNumber", vars.levelNumberST, new int[]{ 0x20 }, 0x0, "byte", false, false),
+			vars.tcStruct("finalLever", vars.finalLeverST, new int[]{ 0x80, 0xC }, 0x0, "bool", false, false),
+			vars.tcStruct("isIntroDone", vars.isIntroDoneST, new int[]{ 0x24 }, 0x0, "bool", false, false)
 		};
 		
-		List<Tuple<String, SigScanTarget, int[], int, String, bool>> watcherList = vars.watcherList;
+		List<Tuple<String, SigScanTarget, int[], int, String, bool, bool>> watcherList = vars.watcherList;
 		
 		for(var i = 0; i < watcherList.Count; ++i) {
 			bool initialized = false;
 			var watcherToParse = watcherList[i];
 			while(!initialized) {
-				var ptr = vars.readMultipointer(proc, module, watcherToParse.Item1, watcherToParse.Item2, watcherToParse.Item3, watcherToParse.Item4);
+				var ptr = vars.readMultipointer(proc, module, watcherToParse.Item1, watcherToParse.Item2, watcherToParse.Item3, watcherToParse.Item4, watcherToParse.Item6);
 				if(ptr != IntPtr.Zero) {
 					initialized = true;
 					var index = watcherList.FindIndex(t => t.Item1 == watcherToParse.Item1); // getting the right index
-					watcherList[index] = vars.tcStruct(watcherToParse.Item1, watcherToParse.Item2, watcherToParse.Item3, watcherToParse.Item4, watcherToParse.Item5, true);
+					watcherList[index] = vars.tcStruct(watcherToParse.Item1, watcherToParse.Item2, watcherToParse.Item3, watcherToParse.Item4, watcherToParse.Item5, watcherToParse.Item6, true);
 					switch(watcherToParse.Item5) {
 						case "bool":
 							vars.watchers.Add(new MemoryWatcher<bool>(ptr));
@@ -217,7 +228,9 @@ startup {
 			}
 		}
 		
-		refreshRate = 1000/7; // limit the cycles to 7ms
+		refresh = 1000/7; // set cycle to refresh every 7ms
+		refreshRate = refresh;
+		vars.DebugOutput("triggerInit{} - done and set refreshRate to " + refreshRate);
 		vars.initialized = true;
 		vars.cooldownStopwatch.Reset(); // resetting stopwatch since we don't need it to run anymore
 	};
@@ -235,10 +248,11 @@ init {
 // gets triggered as often as refreshRate is set at | 70 = 1000ms / 70 => every 14ms
 update {
 	if(vars.initialized) {
+		refreshRate = 1000/7; // set cycle to refresh every 7ms
 		vars.watchers.UpdateAll(game);
 		for(int i = 0; i < vars.watchers.Count; ++i) {
 			// get the corresponding properties (which belong to this struct)
-			Tuple<String, SigScanTarget, int[], int, String, bool> currentWatcher = vars.watcherList[i];
+			Tuple<String, SigScanTarget, int[], int, String, bool, bool> currentWatcher = vars.watcherList[i];
 			MemoryWatcher currentWatcherValues = vars.watchers[i];
 			if(!currentWatcherValues.Current.Equals(currentWatcherValues.Old)) {
 				vars.DebugOutput("update{} - " + currentWatcher.Item1 + " changed from " + currentWatcherValues.Old + " to " + currentWatcherValues.Current);
@@ -258,7 +272,6 @@ update {
 							List<Tuple<int, bool, bool>> list = vars.levelProgression;
 							int levelNum = Convert.ToInt32(currentWatcherValues.Current); // cast won't work because MemoryWatcher doesn't inherit an int type
 							if((vars.gameDone || vars.runStarted) && levelNum == 0) { // game has been beaten or reset, runner goes back to main menu and is on loading phase
-								refreshRate = 70;
 								vars.DebugOutput("update{} - " + "run reset detected (game beaten or went back to main menu); reinitialising splitter");
 								vars.shouldReset = true;
 								vars.triggerInit(refreshRate, game, modules.First()); // resetting stuff
@@ -326,14 +339,13 @@ update {
 
 // Only runs when the timer is stopped
 start {
+	refreshRate = 1000/7; // set cycle to refresh every 7ms
 	if(vars.shouldStart) {
 		vars.shouldStart = false;
-		refreshRate = 1000/7; // limit the cycles to 7ms
 		return true;
 	}
 	else if(vars.runStarted) {
 		// manual reset detected
-		refreshRate = 1000/500; // set to refresh cycle of 500ms
 		vars.DebugOutput("start{} - " + "manual reset (timer stopped) detected; reinitialising splitter");
 		vars.triggerInit(refreshRate, game, modules.First()); // resetting stuff
 	}
