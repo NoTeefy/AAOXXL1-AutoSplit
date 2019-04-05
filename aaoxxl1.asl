@@ -1,6 +1,6 @@
 /*
 	Astérix & Obélix Auto-Splitter XXL 1 (with loadless timer)
-	Version: 1.0.0
+	Version: 1.0.1
 	Author: NoTeefy
 	Compatible Versions: Standalone (PC)
 	Some code may be inspired by some referenced scripts and their authors: Avasam, DevilSquirrel, tduva, Darkid
@@ -22,7 +22,7 @@ state("Gamemodule.elb") {
 
 // Loading & func/var declaration
 startup {
-	vars.ver = "1.0.0";
+	vars.ver = "1.0.1";
 	vars.cooldownStopwatch = new Stopwatch();
 	refreshRate = 1000/500;
 	
@@ -117,7 +117,7 @@ startup {
 	);
 	
 	vars.isLoadingST = new SigScanTarget(0,
-		"BF ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 00 00 00 00 00 00 00 00 00 00 00 10 12 ?? ?? ?? 00 00 ?? ??" // base offset of +0x29 (offsets: 0x58, 0x0, 0x5F8, 0x40ED)
+		"00 00 00 00 00 00 00 00 00 00 00 00 00 10 12 ?? ?? ?? 00 00 ?? ??" // base offset of +0x14 (offsets: 0x58, 0x0, 0x5F8, 0x40ED)
 	);
 	
 	/*
@@ -191,7 +191,7 @@ startup {
 		// name, struct(AOB), multilevelpointer offsets, signature offset, type, is64BitPointer, isInitialized (default should be on false)
 		vars.watcherList = new List<Tuple<String, SigScanTarget, int[], int, String, bool, bool>>{
 			//vars.tcStruct("isInCutscene", vars.isInCutsceneST, new int[]{ 0x74, 0x4DC }, 0x0, "bool", false, false),
-			vars.tcStruct("isLoading", vars.isLoadingST, new int[]{ 0x58, 0x0, 0x5F8, 0x40ED }, 0x29, "bool", false, false),
+			vars.tcStruct("isLoading", vars.isLoadingST, new int[]{ 0x58, 0x0, 0x5F8, 0x40ED }, 0x14, "bool", false, false),
 			vars.tcStruct("levelNumber", vars.levelNumberST, new int[]{ 0x20 }, 0x0, "byte", false, false),
 			vars.tcStruct("finalLever", vars.finalLeverST, new int[]{ 0x80, 0xC }, 0x0, "bool", false, false),
 			vars.tcStruct("isIntroDone", vars.isIntroDoneST, new int[]{ 0x24 }, 0x0, "bool", false, false)
