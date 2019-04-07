@@ -18,4 +18,4 @@ Auto-Splitter for the game Astérix &amp; Obélix XXL on PC
  
 **BA9477C5A7BA71294B45C456E0E9D357** - Official XXL 1 Elb-Module with the 64-Bit Patch applied by Ipatix
 
-**D8BAD7B072D88733A20EECB78AE2A1EB** - Official XXL 1 Elb-Module with the 64-Bit Patch applied by Ipatix (+ Widescreen patch)
+**BE221B0FDAB9138CC3D123B3F4733AC1** - Official XXL 1 Elb-Module with the 64-Bit Patch applied by Ipatix (+ Widescreen patch)
